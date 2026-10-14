@@ -20,8 +20,8 @@ If the account uses a different CloudAgent API host, set optional `OZONETEL_BASE
 
 ## Deployment
 
-Connect the GitHub repository to the existing Vercel project `agent-break-dashboard-live`, with this folder as the repository root. Pushes to the production branch then build the dashboard from Git. Keep the project's current environment variables and Upstash integration so its live break history remains available.
+This repository is connected to the existing Vercel project `agent-break-dashboard-live`, with the repository root as its project root. Pushes to the `main` production branch build the dashboard from Git. Keep the project's current environment variables and Upstash integration so its live break history remains available.
 
-The Ozonetel agent-event webhook posts to `/api/agent-event?key=<OZONETEL_WEBHOOK_SECRET>`. Preserve its existing secret and target URL when connecting Git. Historical break events from 26 September 2026 onward are retained in Redis. The bundled `data/break-details.json` supplies 364 older records from 19–25 September 2026 and contains agent names and IDs, so use a private GitHub repository unless that information is intended to be public.
+The Ozonetel agent-event webhook posts to `/api/agent-event?key=<OZONETEL_WEBHOOK_SECRET>`. Preserve its existing secret and target URL. Historical break events from 26 September 2026 onward are retained in Redis. The bundled `data/break-details.json` supplies 364 older records from 19–25 September 2026 and contains agent names and IDs.
 
 `api/report.js` also reads archived call records from `https://sunrooof-agent-calls-20260923.vercel.app/api/calls` when needed. That separate service is an external dependency of this dashboard.
