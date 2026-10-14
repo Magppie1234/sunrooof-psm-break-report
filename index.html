@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agent Break Report</title>
+<style>
+:root{zoom:80%;--navy:#202a45;--ink:#20283a;--muted:#596477;--line:#d5dbe5;--bg:#f3f4f7;--card:#fff;--orange:#d8651c;--pale:#fff1e5}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{max-width:1880px;margin:auto;padding:14px}
+header{background:var(--navy);color:white;text-align:center;padding:16px;font-size:22px;font-weight:750}header a{color:#dfe9ff;font-size:12px;font-weight:500;margin-left:14px}
+.sub{text-align:center;color:var(--muted);font-size:12px;margin:12px 0 16px}.toolbar-scroll{overflow:visible;margin-bottom:12px}.toolbar{display:flex;justify-content:center;align-items:center;gap:7px;flex-wrap:nowrap;min-width:max-content}.toolbar>label{white-space:nowrap}.toolbar>button{white-space:nowrap}
+label{font-size:12px;color:var(--muted)}select,input,button{font:inherit}select,input[type=search],button{height:36px;border:1px solid var(--line);border-radius:6px;padding:5px 10px;background:white;color:var(--ink)}button{cursor:pointer}button.primary{background:var(--navy);color:white;border-color:var(--navy)}button:disabled{opacity:.5;cursor:default}input[type=file]{display:none}
+.status{font-size:12px;color:var(--muted);text-align:center;margin:-4px 0 14px}.status.error{color:#a11e24}.kpis{display:grid;grid-template-columns:repeat(6,1fr);background:white;border:1px solid var(--line);margin-bottom:18px}.kpi{text-align:center;border-right:1px solid var(--line)}.kpi:last-child{border:0}.kpi .label{font-size:12px;font-weight:650;padding:8px;border-bottom:1px solid var(--line)}.kpi .value{font-size:21px;font-weight:750;padding:10px 4px;font-variant-numeric:tabular-nums}
+.live-toolbar{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:5px;flex-wrap:nowrap;white-space:nowrap;min-height:36px}.live-pill{display:inline-block;border-radius:12px;padding:2px 8px;background:#e1f4e5;color:#246c38;font-weight:700}.live-pill.off{background:#fff0d6;color:#805700}
+.break-badge{display:inline-block;border-radius:12px;padding:2px 9px;font-weight:750}.break-yes{background:#fde2e2;color:#aa2020}.break-no{background:#dff3e5;color:#1d7139}.break-pending{background:#fff0d6;color:#805700}.state-pill{display:inline-block;border-radius:12px;padding:2px 9px;font-weight:700;background:#eceef2;color:#49556a}.state-pill.paused{background:#fde2e2;color:#aa2020}.state-pill.ready{background:#dff3e5;color:#1d7139}.state-pill.busy{background:#dceaff;color:#174b89}
+.toolbar .dp-wrap .dp-btn{width:170px;min-width:170px;background:var(--navy);color:white;border-color:var(--navy);text-align:left}.toolbar .dp-wrap .dp-btn .n{background:white;color:var(--navy)}.toolbar .dp{width:292px;padding:10px}.toolbar .dp button{height:auto}.toolbar .dp .dp-day{height:28px}.toolbar .dp .dp-nav button{height:26px}.toolbar .dp .dp-apply{background:#3276e6;color:white}.toolbar .dp-count{white-space:nowrap}
+.multi-filter{position:relative;min-width:155px}.multi-filter>button{width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center;gap:8px}.multi-filter>button:after{content:'▾';font-size:12px}.multi-menu{position:absolute;top:calc(100% + 4px);left:0;z-index:45;min-width:220px;max-height:310px;overflow:auto;background:white;border:1px solid var(--line);border-radius:6px;box-shadow:0 10px 25px rgba(15,20,35,.18);padding:5px}.multi-menu[hidden]{display:none}.multi-menu .multi-all{width:100%;border:0;text-align:left;font-weight:650;height:32px}.multi-choice{display:flex;align-items:center;gap:9px;padding:7px 8px;color:var(--ink);font-size:13px;cursor:pointer;border-radius:4px;white-space:nowrap}.multi-choice:hover,.multi-menu .multi-all:hover{background:#f1f5fa}.multi-choice input{margin:0;accent-color:var(--navy)}
+.section{margin:22px 0}.section h2{margin:0;background:var(--navy);color:white;padding:8px 14px;font-size:14px}.scroll{overflow:auto;background:white}table{border-collapse:collapse;width:100%;white-space:nowrap}th,td{border:1px solid var(--line);padding:7px 10px;text-align:center;font-variant-numeric:tabular-nums}th{background:#3d4659;color:white;text-transform:uppercase;font-size:11px;letter-spacing:.035em}td.name{text-align:left}td.id{font-weight:700}td.total{font-weight:700;background:var(--pale)}tbody tr:hover td{background:#f3f7fd}tbody tr:hover td.total{background:#ffe5d1}tfoot td{font-weight:750;background:#fff0c2}.link{border:0;background:transparent;color:#245886;text-decoration:underline dotted;cursor:pointer;height:auto;padding:0}.reason{font-weight:650;color:#354863}.reason.system{color:#8a6613}.empty{background:white;border:1px solid var(--line);padding:34px;text-align:center;color:var(--muted)}.note{color:var(--muted);font-size:12px;margin:10px 0}
+.expand-toggle{display:inline-flex;align-items:center;gap:7px;text-align:left}.expand-toggle:before{content:'▸';font-size:14px;text-decoration:none}.expand-toggle[aria-expanded=true]:before{content:'▾'}.detail-row>td,.detail-row:hover>td{background:#f7f9fc!important;text-align:left;padding:10px 14px 14px 30px}.detail-caption{font-size:12px;color:var(--muted);margin-bottom:7px}.detail-table{width:auto;min-width:520px;max-width:900px;background:white}.detail-table th,.detail-table td{padding:5px 9px}.detail-table th{background:#e8edf5;color:#35425c;text-align:left}.detail-table td{text-align:left}.detail-table td:last-child{text-align:right;font-weight:650}.detail-empty{color:var(--muted);font-size:13px}
+@media(max-width:1350px){.toolbar-scroll{overflow-x:auto}.toolbar-scroll:has(.dp:not([hidden])),.toolbar-scroll:has(.multi-menu:not([hidden])){overflow:visible}.toolbar{justify-content:flex-start}}@media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr)}.kpi:nth-child(3){border-right:0}.kpi:nth-child(-n+3){border-bottom:1px solid var(--line)}}@media(max-width:560px){.wrap{padding:8px}header{font-size:17px}.kpis{grid-template-columns:repeat(2,1fr)}.kpi{border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>Agent Break Report — <span id="titleDate">Loading…</span></header>
+<p class="sub">Break details from Ozonetel • Durations are shown exactly as reported • Times are in IST</p>
+<div class="toolbar-scroll"><div class="toolbar">
+  <label for="dateBtn">Dates</label><button id="dateBtn" type="button" aria-label="Report dates"></button><button id="lastWeek" type="button" title="Previous 7 completed days">Last week</button>
+  <button id="refresh" type="button">Refresh now</button>
+  <span id="liveStatus" class="live-toolbar">Checking Ozonetel…</span>
+  <label for="agentBtn">Agent</label><div class="multi-filter" id="agentFilter"><button id="agentBtn" type="button" aria-haspopup="true" aria-expanded="false">All agents</button><div class="multi-menu" id="agentMenu" hidden><button id="agentAll" class="multi-all" type="button">All agents</button><div id="agentChoices"></div></div></div>
+  <label for="typeBtn">Break type</label><div class="multi-filter" id="typeFilter"><button id="typeBtn" type="button" aria-haspopup="true" aria-expanded="false">All types</button><div class="multi-menu" id="typeMenu" hidden><button id="typeAll" class="multi-all" type="button">All types</button><div id="typeChoices"></div></div></div>
+  <button id="reset" type="button">Reset filters</button>
+  <button id="rawCsv" type="button" disabled>Download raw CSV</button>
+</div></div>
+<div id="status" class="status">Loading report…</div>
+<div id="kpis" class="kpis"></div>
+<section class="section"><h2 id="agentTitle">Agent break summary</h2><div class="scroll" id="agents"></div></section>
+<section class="section"><h2 id="typesTitle">Break type summary</h2><div class="scroll" id="types"></div></section>
+<p class="note" id="source"></p>
+</div>
+<script src="/datepicker.js"></script>
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sec=s=>{const p=String(s||'').split(':').map(Number);return p.length===3&&p.every(Number.isFinite)?p[0]*3600+p[1]*60+p[2]:0};
+const hms=n=>{n=Math.max(0,Math.round(n));return `${Math.floor(n/3600)}:${String(Math.floor(n%3600/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`};
+const dateLabel=d=>new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+const isSystem=r=>/sip disconnect|changemode/i.test(r);
+let records=[], source='', capturedAt='';
+let liveStatuses=[], liveAgentCount=0, liveError='',liveStale=false,todayBreakData={agents:[],trackingSince:null,events:0};
+const completedBreakData=new Map(),completedLoading=new Set();
+const selectedAgents=new Set();
+const selectedTypes=new Set();
+const expandedAgents=new Set(),expandedTypes=new Set();
+const todayIST=()=>new Date(Date.now()+330*60000).toISOString().slice(0,10);
+const dayOffset=n=>new Date(Date.parse(todayIST()+'T00:00:00Z')+n*864e5).toISOString().slice(0,10);
+const picker=DatePicker($('#dateBtn'),{max:todayIST,today:todayIST,limit:31,onApply:()=>render()});
+picker.set([todayIST()]);
+const pickedDates=()=>picker.get();
+const whenIST=value=>new Date(value).toLocaleTimeString('en-IN',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',second:'2-digit'});
+let liveBusy=false;
+async function refreshLive(){
+  if(liveBusy)return;liveBusy=true;
+  const date=todayIST();
+  try{
+    const response=await fetch(`/api/report?view=live&date=${date}`,{cache:'no-store'});
+    if(!response.ok){const error=await response.json().catch(()=>({}));throw Error(error.error||'Live Ozonetel feed is unavailable.')}
+    const state=await response.json();
+    if(!state.ok||state.demo||!state.live)throw Error('Live Ozonetel feed is unavailable.');
+    const statuses=(state.status||[]).filter(s=>Number.isFinite(s.checkedSecsAgo)&&s.checkedSecsAgo<=300);
+    liveStatuses=statuses;liveAgentCount=state.agentCount||statuses.length;liveError='';liveStale=!!state.stale;
+    const pending=Math.max(0,(state.agentCount||statuses.length)-statuses.length);
+    const onBreak=s=>/^(aux|pause|paused|break)$/i.test(String(s?.state||''));
+    const breakCount=statuses.filter(onBreak).length;
+    const at=state.fetchedAt;
+    const countText=state.stale?`Last checked: ${breakCount} on break`:pending?`${breakCount} on break among ${statuses.length} checked · ${pending} pending`:`${breakCount} on break now`;
+    $('#liveStatus').innerHTML=`<span class="live-pill ${state.stale?'off':''}">${state.stale?'Delayed':'Live'}</span> <span class="break-badge break-${breakCount?'yes':pending?'pending':'no'}">${countText}</span> · Updated ${at?esc(whenIST(at)):'just now'} IST · Refreshes every minute${state.warning?' · '+esc(state.warning):''}`;
+    buildOptions();render();
+  }catch(error){
+    liveError=error.message;liveStale=true;
+    $('#liveStatus').innerHTML='<span class="live-pill off">Unavailable</span> '+esc(error.message);
+    render();
+  }finally{liveBusy=false}
+}
+async function refreshDetails(){
+  try{const response=await fetch('/api/breaks',{cache:'no-store'});if(!response.ok)throw Error('Could not refresh detailed break report.');const data=await response.json();if(!Array.isArray(data.records))throw Error('Detailed break report is incomplete.');
+    const changed=data.capturedAt!==capturedAt||data.records.length!==records.length;
+    if(changed){records=data.records;source=data.source||'Ozonetel';capturedAt=data.capturedAt||'';buildOptions();render()}
+    $('#status').textContent=records.length?`Saved snapshot: ${records.length} entries across ${new Set(records.map(r=>r.date)).size} dates through ${dateLabel(records.map(r=>r.date).sort().at(-1))} · Later completed dates load when selected.`:'No saved detailed break entries are available.';
+    $('#status').classList.remove('error');
+  }catch(error){$('#status').textContent=error.message;$('#status').classList.add('error')}
+}
+async function refreshToday(){
+  try{
+    const response=await fetch('/api/today-breaks?date='+todayIST(),{cache:'no-store'});
+    if(!response.ok)throw Error('Live break history unavailable');
+    const data=await response.json();
+    if(!data.ok||!Array.isArray(data.agents))throw Error('Live break history unavailable');
+    todayBreakData=data;
+    buildOptions();render();
+  }catch(error){
+    todayBreakData={agents:[],trackingSince:null,events:0,error:error.message};
+    render();
+  }
+}
+function filtered(){const dates=new Set(pickedDates());return records.filter(r=>dates.has(r.date)&&(!selectedAgents.size||selectedAgents.has(r.agentId))&&(!selectedTypes.size||selectedTypes.has(r.reason)))}
+function displayAgentName(id,supplied=''){
+  const live=liveStatuses.find(s=>s.agentId===id)?.agentName;
+  const today=todayBreakData.agents.find(a=>a.agentId===id)?.agentName;
+  const saved=records.find(r=>r.agentId===id)?.agentName;
+  const completed=[...completedBreakData.values()].flatMap(data=>data.agents||[]).find(a=>a.agentId===id)?.agentName;
+  return [live,supplied,today,saved,completed].find(name=>typeof name==='string'&&name.trim()&&name.trim().toLowerCase()!==String(id).toLowerCase())?.trim()||id;
+}
+function currentBreakRows(days=pickedDates()){
+  const today=todayIST();
+  const rows=days.length===1&&days[0]===today
+    ?breakRows(todayBreakData,today)
+    :[...filtered(),...days.flatMap(date=>breakRows(completedBreakData.get(date),date)),...(days.includes(today)?breakRows(todayBreakData,today):[])];
+  return rows.filter(r=>(!selectedAgents.size||selectedAgents.has(r.agentId))&&(!selectedTypes.size||selectedTypes.has(r.reason)));
+}
+function downloadCsv(name,head,rows,prefix=[]){
+  const cell=value=>{const raw=String(value??'');const safe=/^[\s]*[=+\-@]/.test(raw)?"'"+raw:raw;return '"'+safe.replace(/"/g,'""')+'"'};
+  const csv='\uFEFF'+[...prefix,head,...rows].map(row=>row.map(cell).join(',')).join('\r\n');
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  const link=document.createElement('a');link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function breakRows(data,date){
+  const now=Date.now();
+  return (data?.agents||[]).flatMap(a=>(a.breaks||[]).map(b=>({date,agentId:a.agentId,agentName:displayAgentName(a.agentId,a.agentName),reason:b.reason||'Reason unavailable',duration:b.duration||(!b.end&&date<todayIST()?'—':hms((Date.parse(b.end||new Date(now).toISOString())-Date.parse(b.start))/1000)),start:b.start,end:b.end})));
+}
+function loadCompletedDates(days){
+  const saved=new Set(records.map(r=>r.date));
+  for(const date of days){
+    if(date>=todayIST()||date<'2026-09-26'||saved.has(date)||completedBreakData.has(date)||completedLoading.has(date))continue;
+    completedLoading.add(date);
+    fetch('/api/today-breaks?date='+date,{cache:'no-store'}).then(async response=>{
+      if(!response.ok)throw Error('Completed break report unavailable');
+      const data=await response.json();
+      if(!data.ok||!Array.isArray(data.agents))throw Error('Completed break report unavailable');
+      completedBreakData.set(date,data);
+      buildOptions();
+    }).catch(()=>completedBreakData.set(date,{agents:[],error:true})).finally(()=>{completedLoading.delete(date);render()});
+  }
+}
+function updateAgentButton(){
+  const names=[...selectedAgents];
+  $('#agentBtn').textContent=names.length===0?'All agents':names.length===1?displayAgentName(names[0]):`${names.length} agents selected`;
+  $('#agentBtn').title=names.join(', ');
+}
+function updateTypeButton(){
+  const names=[...selectedTypes].sort();
+  $('#typeBtn').textContent=names.length===0?'All types':names.length===1?names[0]:`${names.length} types selected`;
+  $('#typeBtn').title=names.join(', ');
+}
+function buildOptions(){
+  const ids=new Set([...records.map(r=>r.agentId),...liveStatuses.map(s=>s.agentId),...todayBreakData.agents.map(a=>a.agentId),...[...completedBreakData.values()].flatMap(data=>(data.agents||[]).map(a=>a.agentId))]);
+  const agents=[...ids].map(id=>[id,displayAgentName(id)]).sort((a,b)=>a[0].localeCompare(b[0]));
+  for(const id of selectedAgents)if(!agents.some(([agentId])=>agentId===id))selectedAgents.delete(id);
+  $('#agentChoices').innerHTML=agents.map(([id,name])=>`<label class="multi-choice"><input type="checkbox" value="${esc(id)}" ${selectedAgents.has(id)?'checked':''}><span>${esc(name)} (${esc(id)})</span></label>`).join('');
+  updateAgentButton();
+  const types=[...new Set([...records.map(r=>r.reason),...todayBreakData.agents.flatMap(a=>a.breaks.map(b=>b.reason)),...[...completedBreakData.entries()].flatMap(([date,data])=>breakRows(data,date).map(r=>r.reason))])].sort();
+  for(const name of selectedTypes)if(!types.includes(name))selectedTypes.delete(name);
+  $('#typeChoices').innerHTML=types.map(name=>`<label class="multi-choice"><input type="checkbox" value="${esc(name)}" ${selectedTypes.has(name)?'checked':''}><span>${esc(name)}</span></label>`).join('');
+  updateTypeButton();
+}
+function breakTime(value,date,multipleDates){
+  if(!value)return date<todayIST()?'End unavailable':'Ongoing';
+  if(/^\d{2}:\d{2}:\d{2}$/.test(value)){
+    const hour=Number(value.slice(0,2));
+    return `${multipleDates&&date?dateLabel(date)+' · ':''}${hour%12||12}${value.slice(2)} ${hour<12?'am':'pm'}`;
+  }
+  const time=new Date(value);
+  if(Number.isNaN(time.getTime()))return String(value);
+  const day=time.toLocaleDateString('en-GB',{timeZone:'Asia/Kolkata',day:'numeric',month:'short'});
+  const clock=time.toLocaleTimeString('en-US',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}).toLowerCase();
+  return `${day}, ${clock}`;
+}
+function csvClock(value){
+  // An invisible left-to-right mark keeps Excel from converting the compact clock text into a numeric time that shows as #### in its default-width CSV columns.
+  if(/^\d{2}:\d{2}:\d{2}$/.test(String(value||''))){
+    const hour=Number(value.slice(0,2));
+    return `\u200E${hour%12||12}${value.slice(2)}${hour<12?'am':'pm'}`;
+  }
+  const time=new Date(value);
+  return Number.isNaN(time.getTime())?String(value||''):'\u200E'+time.toLocaleTimeString('en-US',{timeZone:'Asia/Kolkata',hour:'numeric',minute:'2-digit',second:'2-digit',hour12:true}).toLowerCase().replace(' ','');
+}
+function detailRow(entries,kind,colspan,multipleDates){
+  if(!entries.length)return `<tr class="detail-row"><td colspan="${colspan}"><div class="detail-empty">No break entries match the selected filters.</div></td></tr>`;
+  const startStamp=r=>Date.parse(/^\d{2}:\d{2}:\d{2}$/.test(r.start)?`${r.date}T${r.start}+05:30`:r.start)||0;
+  const sorted=[...entries].sort((a,b)=>startStamp(b)-startStamp(a));
+  const named=entries.filter(r=>!isSystem(r.reason)).length,system=entries.length-named;
+  const caption=kind==='agent'?`${named} named break${named===1?'':'s'}${system?` · ${system} system state${system===1?'':'s'}`:''}`:`${entries.length} entr${entries.length===1?'y':'ies'}`;
+  const first=kind==='agent'?'Break type':'Agent';
+  return `<tr class="detail-row"><td colspan="${colspan}"><div class="detail-caption">${caption} · Most recent first</div><table class="detail-table"><thead><tr><th>${first}</th><th>Start (IST)</th><th>End (IST)</th><th>Duration</th></tr></thead><tbody>${sorted.map(r=>`<tr><td>${kind==='agent'?esc(r.reason):esc(r.agentName)+' ('+esc(r.agentId)+')'}</td><td>${esc(breakTime(r.start,r.date,multipleDates))}</td><td>${esc(breakTime(r.end,r.date,multipleDates))}</td><td>${esc(r.duration)}</td></tr>`).join('')}</tbody></table></td></tr>`;
+}
+function render(){
+  const days=pickedDates(),byAgent=new Map(),byType=new Map();let total=0,system=0;
+  loadCompletedDates(days);
+  const availableDates=records.map(r=>r.date).sort(),latest=availableDates.at(-1)||'',earliest=availableDates[0]||'';
+  const showLive=days.length===1&&days[0]===todayIST();
+  const rows=currentBreakRows(days);
+  $('#rawCsv').disabled=!rows.length||days.some(date=>completedLoading.has(date)||completedBreakData.get(date)?.error);
+  const beyondLatest=days.filter(d=>latest&&d>latest),beforeEarliest=days.filter(d=>earliest&&d<earliest);
+  const unavailable=!showLive&&!rows.length&&(beyondLatest.length>0||beforeEarliest.length>0);
+  for(const r of rows){const n=sec(r.duration);total+=n;if(isSystem(r.reason))system+=n;
+    let a=byAgent.get(r.agentId);if(!a){a={id:r.agentId,name:r.agentName,count:0,total:0,reasons:{}};byAgent.set(r.agentId,a)}a.count++;a.total+=n;a.reasons[r.reason]=(a.reasons[r.reason]||0)+n;
+    let t=byType.get(r.reason);if(!t){t={count:0,total:0,agents:new Set()};byType.set(r.reason,t)}t.count++;t.total+=n;t.agents.add(r.agentId);
+  }
+  const agents=[...byAgent.values()].sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name));
+  const types=[...byType.entries()].sort((a,b)=>b[1].total-a[1].total);
+  const top=types.find(([reason])=>!isSystem(reason))?.[0]||'—';
+  const planned=total-system;
+  $('#titleDate').textContent=days.length===1?dateLabel(days[0]):DatePicker.label(days);
+  const active=liveStatuses.filter(s=>!selectedAgents.size||selectedAgents.has(s.agentId));
+  const paused=active.filter(s=>/^(aux|pause|paused|break)$/i.test(String(s.state||''))).length;
+  const ready=active.filter(s=>/^ready$/i.test(String(s.state||''))).length;
+  $('#kpis').innerHTML=(showLive?[['Known agents',selectedAgents.size?selectedAgents.size:new Set(records.map(r=>r.agentId)).size],['Checked now',active.length],[liveStale?'On break last checked':'On break now',active.length?paused:'—'],['Named breaks today',rows.filter(r=>!isSystem(r.reason)).length],['Named break time',hms(planned)],['Top reason today',top]]:[['Agents',unavailable?'—':agents.length],['Named break time',unavailable?'—':hms(planned)],['Report entries',unavailable?'—':rows.length],['Average named breaks',unavailable?'—':hms(agents.length?planned/agents.length:0)],['Top named type',top],['System state time',unavailable?'—':hms(system)]]).map(([label,value])=>`<div class="kpi"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div></div>`).join('');
+  const reasons=[...new Set(rows.map(r=>r.reason))].filter(r=>!isSystem(r)&&(!selectedTypes.size||selectedTypes.has(r))).sort();
+  const cols=['Agent ID','Agent name','Entries',...reasons,'System states','Total time'];
+  const head='<thead><tr>'+cols.map(x=>`<th>${esc(x)}</th>`).join('')+'</tr></thead>';
+  const body=agents.map(a=>`<tr><td class="id">${esc(a.id)}</td><td class="name"><button class="link expand-toggle" data-agent="${esc(a.id)}" aria-expanded="${expandedAgents.has(a.id)}">${esc(a.name)}</button></td><td>${a.count}</td>${reasons.map(r=>`<td>${hms(a.reasons[r]||0)}</td>`).join('')}<td>${hms(Object.entries(a.reasons).filter(([r])=>isSystem(r)).reduce((n,[,v])=>n+v,0))}</td><td class="total">${hms(a.total)}</td></tr>${expandedAgents.has(a.id)?detailRow(rows.filter(r=>r.agentId===a.id),'agent',cols.length,days.length>1):''}`).join('');
+  $('#agentTitle').textContent=showLive?'Agent status now':'Agent break summary';
+  $('#typesTitle').textContent=showLive?'Break type summary — today':'Break type summary';
+  const roster=[...new Set([...records.map(r=>r.agentId),...liveStatuses.map(s=>s.agentId),...todayBreakData.agents.map(a=>a.agentId)])].map(id=>[id,displayAgentName(id)]).filter(([id])=>!selectedAgents.size||selectedAgents.has(id));
+  const liveById=new Map(active.map(s=>[s.agentId,s]));
+  const liveBody=roster.map(([id,name])=>{const s=liveById.get(id),state=s?.state|| (liveError?'Unavailable':'Checking'),cls=/^(aux|pause|paused|break)$/i.test(state)?'paused':/^ready$/i.test(state)?'ready':/^(busy|calling|on call|oncall|in call|incall)$/i.test(state)?'busy':'',entry=todayBreakData.agents.find(a=>a.agentId===id),open=entry?.breaks.find(b=>!b.end),reason=cls==='paused'?(open?.reason||s?.reason||'Reason unavailable'):'—',a=byAgent.get(id),agentReasons=a?.reasons||{};
+    const auxPunchedAt=cls==='paused'&&open?.start&&Number.isFinite(Date.parse(open.start))?whenIST(open.start):'—';
+    const namedCount=(entry?.breaks||[]).filter(b=>!isSystem(b.reason)).filter(b=>!selectedTypes.size||selectedTypes.has(b.reason)).length;
+    const namedTime=Object.entries(agentReasons).filter(([r])=>!isSystem(r)).reduce((n,[,v])=>n+v,0);
+    return `<tr><td class="id">${esc(id)}</td><td class="name"><button class="link expand-toggle" data-agent="${esc(id)}" aria-expanded="${expandedAgents.has(id)}">${esc(displayAgentName(id,s?.agentName||name))}</button></td><td><span class="state-pill ${cls}">${esc(cls==='paused'?'ON BREAK':state)}</span></td><td>${esc(reason)}</td><td>${esc(auxPunchedAt)}</td><td>${esc(s?.since||'—')}</td><td>${namedCount}</td><td>${esc(Object.keys(agentReasons).filter(r=>!isSystem(r)).join(', ')||'—')}</td><td class="total">${hms(namedTime)}</td></tr>${expandedAgents.has(id)?detailRow(rows.filter(r=>r.agentId===id),'agent',9,false):''}`}).join('');
+  $('#agents').innerHTML=showLive?`<table><thead><tr><th>Agent ID</th><th>Agent name</th><th>Current state</th><th>Current reason</th><th>AUX punched at (IST)</th><th>Time in state</th><th>Breaks today</th><th>Reasons today</th><th>Break time today</th></tr></thead><tbody>${liveBody}</tbody></table>`:agents.length?`<table>${head}<tbody>${body}</tbody><tfoot><tr><td colspan="2">GRAND TOTAL</td><td>${rows.length}</td>${reasons.map(r=>`<td>${hms(byType.get(r)?.total||0)}</td>`).join('')}<td>${hms(system)}</td><td>${hms(total)}</td></tr></tfoot></table>`:`<div class="empty">${days.some(date=>completedLoading.has(date))?'Loading completed break report…':days.some(date=>completedBreakData.get(date)?.error)?'Could not load the completed break report. Try Refresh now.':unavailable?'No detailed break records are available for the selected date yet.':'No break entries match these filters.'}</div>`;
+  $('#types').innerHTML=types.length?`<table><thead><tr><th>Break type</th><th>Entries</th><th>Agents</th><th>Total time</th><th>Share of all time</th></tr></thead><tbody>${types.map(([name,t])=>`<tr><td class="name reason ${isSystem(name)?'system':''}"><button class="link expand-toggle" data-type="${esc(name)}" aria-expanded="${expandedTypes.has(name)}">${esc(name)}</button></td><td>${t.count}</td><td>${t.agents.size}</td><td>${hms(t.total)}</td><td>${total?(100*t.total/total).toFixed(1):'0.0'}%</td></tr>${expandedTypes.has(name)?detailRow(rows.filter(r=>r.reason===name),'type',5,days.length>1):''}`).join('')}</tbody></table>`:'<div class="empty">No break types to show.</div>';
+  $('#source').textContent=showLive?'Today: current states from Ozonetel Get Agent Logins; completed breaks from Ozonetel Live Agent Break Details; new breaks from Ozonetel agent events. SIP disconnections are excluded from named break counts and time. Refreshes every minute.':`Detailed break source: ${source}. ${capturedAt?'Earlier snapshot saved '+new Date(capturedAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})+' IST. ':''}Later completed dates load from retained Ozonetel break events. Entries without an end time are excluded from total duration. “SIP disconnected” and “changeMode” are system states.`;
+}
+for(const kind of ['agent','type']){
+  const btn=$(`#${kind}Btn`),menu=$(`#${kind}Menu`);
+  btn.onclick=()=>{for(const other of ['agent','type'])if(other!==kind){$(`#${other}Menu`).hidden=true;$(`#${other}Btn`).setAttribute('aria-expanded','false')}menu.hidden=!menu.hidden;btn.setAttribute('aria-expanded',String(!menu.hidden))};
+}
+$('#agentAll').onclick=()=>{selectedAgents.clear();buildOptions();render()};
+$('#agentChoices').onchange=e=>{const input=e.target;if(!input.matches('input[type=checkbox]'))return;if(input.checked)selectedAgents.add(input.value);else selectedAgents.delete(input.value);updateAgentButton();render()};
+$('#typeAll').onclick=()=>{selectedTypes.clear();buildOptions();render()};
+$('#typeChoices').onchange=e=>{const input=e.target;if(!input.matches('input[type=checkbox]'))return;if(input.checked)selectedTypes.add(input.value);else selectedTypes.delete(input.value);updateTypeButton();render()};
+document.addEventListener('pointerdown',e=>{for(const kind of ['agent','type'])if(!$(`#${kind}Filter`).contains(e.target)){$(`#${kind}Menu`).hidden=true;$(`#${kind}Btn`).setAttribute('aria-expanded','false')}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')for(const kind of ['agent','type'])if(!$(`#${kind}Menu`).hidden){$(`#${kind}Menu`).hidden=true;$(`#${kind}Btn`).setAttribute('aria-expanded','false');$(`#${kind}Btn`).focus()}});
+$('#lastWeek').onclick=()=>{picker.set(Array.from({length:7},(_,i)=>dayOffset(i-7)));render()};
+$('#reset').onclick=()=>{picker.set([todayIST()]);selectedAgents.clear();selectedTypes.clear();buildOptions();render()};
+$('#refresh').onclick=()=>{for(const date of pickedDates())completedBreakData.delete(date);refreshLive();refreshDetails();refreshToday();render()};
+$('#rawCsv').onclick=()=>{
+  const days=pickedDates();
+  if($('#rawCsv').disabled)return;
+  const stamp=r=>Date.parse(/^\d{2}:\d{2}:\d{2}$/.test(r.start)?`${r.date}T${r.start}+05:30`:r.start)||0;
+  const rows=currentBreakRows(days).sort((a,b)=>a.date.localeCompare(b.date)||a.agentName.localeCompare(b.agentName)||a.agentId.localeCompare(b.agentId)||stamp(a)-stamp(b));
+  const suffix=days.length===1?days[0]:days[0]+'_to_'+days.at(-1);
+  const body=[],seenDates=new Set();
+  for(const r of rows){
+    if(days.length>1&&!seenDates.has(r.date)){body.push([`Date: ${dateLabel(r.date)}`]);seenDates.add(r.date)}
+    body.push([r.agentId,r.agentName,r.reason,csvClock(r.start),r.end?csvClock(r.end):r.date<todayIST()?'End unavailable':'Ongoing',r.duration,r.end?'Completed':'Ongoing']);
+  }
+  downloadCsv('agent-break-raw-'+suffix+'.csv',['Agent ID','Agent name','Break type','Start (IST)','End (IST)','Duration','Status'],body,[[days.length===1?'Report date':'Report dates',days.map(dateLabel).join(' · ')],[]]);
+};
+$('#agents').onclick=e=>{const b=e.target.closest('[data-agent]');if(b){const id=b.dataset.agent;if(expandedAgents.has(id))expandedAgents.delete(id);else expandedAgents.add(id);render()}};
+$('#types').onclick=e=>{const b=e.target.closest('[data-type]');if(b){const type=b.dataset.type;if(expandedTypes.has(type))expandedTypes.delete(type);else expandedTypes.add(type);render()}};
+refreshDetails();refreshLive();refreshToday();setInterval(()=>{refreshDetails();refreshLive();refreshToday()},60000);
+</script>
+</body>
+</html>
