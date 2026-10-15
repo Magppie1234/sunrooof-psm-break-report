@@ -50,7 +50,10 @@ let records=[], source='', capturedAt='';
 let liveStatuses=[], liveAgentCount=0, liveError='',liveStale=false,todayBreakData={agents:[],trackingSince:null,events:0};
 const completedBreakData=new Map(),completedLoading=new Set();
 const selectedAgents=new Set();
-const selectedTypes=new Set();
+const excludedTypes=new Set(['changemode']);
+let knownTypes=[];
+const typeKey=name=>String(name||'').trim().toLowerCase().replace(/\s+/g,'');
+const typeSelected=name=>!excludedTypes.has(typeKey(name));
 const expandedAgents=new Set(),expandedTypes=new Set();
 const todayIST=()=>new Date(Date.now()+330*60000).toISOString().slice(0,10);
 const dayOffset=n=>new Date(Date.parse(todayIST()+'T00:00:00Z')+n*864e5).toISOString().slice(0,10);
@@ -103,7 +106,7 @@ async function refreshToday(){
     render();
   }
 }
-function filtered(){const dates=new Set(pickedDates());return records.filter(r=>dates.has(r.date)&&(!selectedAgents.size||selectedAgents.has(r.agentId))&&(!selectedTypes.size||selectedTypes.has(r.reason)))}
+function filtered(){const dates=new Set(pickedDates());return records.filter(r=>dates.has(r.date)&&(!selectedAgents.size||selectedAgents.has(r.agentId))&&typeSelected(r.reason))}
 function displayAgentName(id,supplied=''){
   const live=liveStatuses.find(s=>s.agentId===id)?.agentName;
   const today=todayBreakData.agents.find(a=>a.agentId===id)?.agentName;
@@ -116,7 +119,7 @@ function currentBreakRows(days=pickedDates()){
   const rows=days.length===1&&days[0]===today
     ?breakRows(todayBreakData,today)
     :[...filtered(),...days.flatMap(date=>breakRows(completedBreakData.get(date),date)),...(days.includes(today)?breakRows(todayBreakData,today):[])];
-  return rows.filter(r=>(!selectedAgents.size||selectedAgents.has(r.agentId))&&(!selectedTypes.size||selectedTypes.has(r.reason)));
+  return rows.filter(r=>(!selectedAgents.size||selectedAgents.has(r.agentId))&&typeSelected(r.reason));
 }
 function downloadCsv(name,head,rows,prefix=[]){
   const cell=value=>{const raw=String(value??'');const safe=/^[\s]*[=+\-@]/.test(raw)?"'"+raw:raw;return '"'+safe.replace(/"/g,'""')+'"'};
@@ -148,8 +151,8 @@ function updateAgentButton(){
   $('#agentBtn').title=names.join(', ');
 }
 function updateTypeButton(){
-  const names=[...selectedTypes].sort();
-  $('#typeBtn').textContent=names.length===0?'All types':names.length===1?names[0]:`${names.length} types selected`;
+  const names=knownTypes.filter(typeSelected);
+  $('#typeBtn').textContent=names.length===knownTypes.length?'All types':names.length===0?'No types selected':names.length===1?names[0]:`${names.length} types selected`;
   $('#typeBtn').title=names.join(', ');
 }
 function buildOptions(){
@@ -159,8 +162,8 @@ function buildOptions(){
   $('#agentChoices').innerHTML=agents.map(([id,name])=>`<label class="multi-choice"><input type="checkbox" value="${esc(id)}" ${selectedAgents.has(id)?'checked':''}><span>${esc(name)} (${esc(id)})</span></label>`).join('');
   updateAgentButton();
   const types=[...new Set([...records.map(r=>r.reason),...todayBreakData.agents.flatMap(a=>a.breaks.map(b=>b.reason)),...[...completedBreakData.entries()].flatMap(([date,data])=>breakRows(data,date).map(r=>r.reason))])].sort();
-  for(const name of selectedTypes)if(!types.includes(name))selectedTypes.delete(name);
-  $('#typeChoices').innerHTML=types.map(name=>`<label class="multi-choice"><input type="checkbox" value="${esc(name)}" ${selectedTypes.has(name)?'checked':''}><span>${esc(name)}</span></label>`).join('');
+  knownTypes=types;
+  $('#typeChoices').innerHTML=types.map(name=>`<label class="multi-choice"><input type="checkbox" value="${esc(name)}" ${typeSelected(name)?'checked':''}><span>${esc(name)}</span></label>`).join('');
   updateTypeButton();
 }
 function breakTime(value,date,multipleDates){
@@ -215,7 +218,7 @@ function render(){
   const paused=active.filter(s=>/^(aux|pause|paused|break)$/i.test(String(s.state||''))).length;
   const ready=active.filter(s=>/^ready$/i.test(String(s.state||''))).length;
   $('#kpis').innerHTML=(showLive?[['Known agents',selectedAgents.size?selectedAgents.size:new Set(records.map(r=>r.agentId)).size],['Checked now',active.length],[liveStale?'On break last checked':'On break now',active.length?paused:'—'],['Named breaks today',rows.filter(r=>!isSystem(r.reason)).length],['Named break time',hms(planned)],['Top reason today',top]]:[['Agents',unavailable?'—':agents.length],['Named break time',unavailable?'—':hms(planned)],['Report entries',unavailable?'—':rows.length],['Average named breaks',unavailable?'—':hms(agents.length?planned/agents.length:0)],['Top named type',top],['System state time',unavailable?'—':hms(system)]]).map(([label,value])=>`<div class="kpi"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div></div>`).join('');
-  const reasons=[...new Set(rows.map(r=>r.reason))].filter(r=>!isSystem(r)&&(!selectedTypes.size||selectedTypes.has(r))).sort();
+  const reasons=[...new Set(rows.map(r=>r.reason))].filter(r=>!isSystem(r)&&typeSelected(r)).sort();
   const cols=['Agent ID','Agent name','Entries',...reasons,'System states','Total time'];
   const head='<thead><tr>'+cols.map(x=>`<th>${esc(x)}</th>`).join('')+'</tr></thead>';
   const body=agents.map(a=>`<tr><td class="id">${esc(a.id)}</td><td class="name"><button class="link expand-toggle" data-agent="${esc(a.id)}" aria-expanded="${expandedAgents.has(a.id)}">${esc(a.name)}</button></td><td>${a.count}</td>${reasons.map(r=>`<td>${hms(a.reasons[r]||0)}</td>`).join('')}<td>${hms(Object.entries(a.reasons).filter(([r])=>isSystem(r)).reduce((n,[,v])=>n+v,0))}</td><td class="total">${hms(a.total)}</td></tr>${expandedAgents.has(a.id)?detailRow(rows.filter(r=>r.agentId===a.id),'agent',cols.length,days.length>1):''}`).join('');
@@ -225,7 +228,7 @@ function render(){
   const liveById=new Map(active.map(s=>[s.agentId,s]));
   const liveBody=roster.map(([id,name])=>{const s=liveById.get(id),state=s?.state|| (liveError?'Unavailable':'Checking'),cls=/^(aux|pause|paused|break)$/i.test(state)?'paused':/^ready$/i.test(state)?'ready':/^(busy|calling|on call|oncall|in call|incall)$/i.test(state)?'busy':'',entry=todayBreakData.agents.find(a=>a.agentId===id),open=entry?.breaks.find(b=>!b.end),reason=cls==='paused'?(open?.reason||s?.reason||'Reason unavailable'):'—',a=byAgent.get(id),agentReasons=a?.reasons||{};
     const auxPunchedAt=cls==='paused'&&open?.start&&Number.isFinite(Date.parse(open.start))?whenIST(open.start):'—';
-    const namedCount=(entry?.breaks||[]).filter(b=>!isSystem(b.reason)).filter(b=>!selectedTypes.size||selectedTypes.has(b.reason)).length;
+    const namedCount=(entry?.breaks||[]).filter(b=>!isSystem(b.reason)).filter(b=>typeSelected(b.reason)).length;
     const namedTime=Object.entries(agentReasons).filter(([r])=>!isSystem(r)).reduce((n,[,v])=>n+v,0);
     return `<tr><td class="id">${esc(id)}</td><td class="name"><button class="link expand-toggle" data-agent="${esc(id)}" aria-expanded="${expandedAgents.has(id)}">${esc(displayAgentName(id,s?.agentName||name))}</button></td><td><span class="state-pill ${cls}">${esc(cls==='paused'?'ON BREAK':state)}</span></td><td>${esc(reason)}</td><td>${esc(auxPunchedAt)}</td><td>${esc(s?.since||'—')}</td><td>${namedCount}</td><td>${esc(Object.keys(agentReasons).filter(r=>!isSystem(r)).join(', ')||'—')}</td><td class="total">${hms(namedTime)}</td></tr>${expandedAgents.has(id)?detailRow(rows.filter(r=>r.agentId===id),'agent',9,false):''}`}).join('');
   $('#agents').innerHTML=showLive?`<table><thead><tr><th>Agent ID</th><th>Agent name</th><th>Current state</th><th>Current reason</th><th>AUX punched at (IST)</th><th>Time in state</th><th>Breaks today</th><th>Reasons today</th><th>Break time today</th></tr></thead><tbody>${liveBody}</tbody></table>`:agents.length?`<table>${head}<tbody>${body}</tbody><tfoot><tr><td colspan="2">GRAND TOTAL</td><td>${rows.length}</td>${reasons.map(r=>`<td>${hms(byType.get(r)?.total||0)}</td>`).join('')}<td>${hms(system)}</td><td>${hms(total)}</td></tr></tfoot></table>`:`<div class="empty">${days.some(date=>completedLoading.has(date))?'Loading completed break report…':days.some(date=>completedBreakData.get(date)?.error)?'Could not load the completed break report. Try Refresh now.':unavailable?'No detailed break records are available for the selected date yet.':'No break entries match these filters.'}</div>`;
@@ -238,12 +241,12 @@ for(const kind of ['agent','type']){
 }
 $('#agentAll').onclick=()=>{selectedAgents.clear();buildOptions();render()};
 $('#agentChoices').onchange=e=>{const input=e.target;if(!input.matches('input[type=checkbox]'))return;if(input.checked)selectedAgents.add(input.value);else selectedAgents.delete(input.value);updateAgentButton();render()};
-$('#typeAll').onclick=()=>{selectedTypes.clear();buildOptions();render()};
-$('#typeChoices').onchange=e=>{const input=e.target;if(!input.matches('input[type=checkbox]'))return;if(input.checked)selectedTypes.add(input.value);else selectedTypes.delete(input.value);updateTypeButton();render()};
+$('#typeAll').onclick=()=>{excludedTypes.clear();buildOptions();render()};
+$('#typeChoices').onchange=e=>{const input=e.target;if(!input.matches('input[type=checkbox]'))return;if(input.checked)excludedTypes.delete(typeKey(input.value));else excludedTypes.add(typeKey(input.value));updateTypeButton();render()};
 document.addEventListener('pointerdown',e=>{for(const kind of ['agent','type'])if(!$(`#${kind}Filter`).contains(e.target)){$(`#${kind}Menu`).hidden=true;$(`#${kind}Btn`).setAttribute('aria-expanded','false')}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')for(const kind of ['agent','type'])if(!$(`#${kind}Menu`).hidden){$(`#${kind}Menu`).hidden=true;$(`#${kind}Btn`).setAttribute('aria-expanded','false');$(`#${kind}Btn`).focus()}});
 $('#lastWeek').onclick=()=>{picker.set(Array.from({length:7},(_,i)=>dayOffset(i-7)));render()};
-$('#reset').onclick=()=>{picker.set([todayIST()]);selectedAgents.clear();selectedTypes.clear();buildOptions();render()};
+$('#reset').onclick=()=>{picker.set([todayIST()]);selectedAgents.clear();excludedTypes.clear();excludedTypes.add('changemode');buildOptions();render()};
 $('#refresh').onclick=()=>{for(const date of pickedDates())completedBreakData.delete(date);refreshLive();refreshDetails();refreshToday();render()};
 $('#rawCsv').onclick=()=>{
   const days=pickedDates();
