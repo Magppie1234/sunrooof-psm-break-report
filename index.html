@@ -50,7 +50,7 @@ let records=[], source='', capturedAt='';
 let liveStatuses=[], liveAgentCount=0, liveError='',liveStale=false,todayBreakData={agents:[],trackingSince:null,events:0};
 const completedBreakData=new Map(),completedLoading=new Set();
 const selectedAgents=new Set();
-const excludedTypes=new Set(['changemode']);
+const excludedTypes=new Set(['changemode','refresh']);
 let knownTypes=[];
 const typeKey=name=>String(name||'').trim().toLowerCase().replace(/\s+/g,'');
 const typeSelected=name=>!excludedTypes.has(typeKey(name));
@@ -246,7 +246,7 @@ $('#typeChoices').onchange=e=>{const input=e.target;if(!input.matches('input[typ
 document.addEventListener('pointerdown',e=>{for(const kind of ['agent','type'])if(!$(`#${kind}Filter`).contains(e.target)){$(`#${kind}Menu`).hidden=true;$(`#${kind}Btn`).setAttribute('aria-expanded','false')}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')for(const kind of ['agent','type'])if(!$(`#${kind}Menu`).hidden){$(`#${kind}Menu`).hidden=true;$(`#${kind}Btn`).setAttribute('aria-expanded','false');$(`#${kind}Btn`).focus()}});
 $('#lastWeek').onclick=()=>{picker.set(Array.from({length:7},(_,i)=>dayOffset(i-7)));render()};
-$('#reset').onclick=()=>{picker.set([todayIST()]);selectedAgents.clear();excludedTypes.clear();excludedTypes.add('changemode');buildOptions();render()};
+$('#reset').onclick=()=>{picker.set([todayIST()]);selectedAgents.clear();excludedTypes.clear();excludedTypes.add('changemode');excludedTypes.add('refresh');buildOptions();render()};
 $('#refresh').onclick=()=>{for(const date of pickedDates())completedBreakData.delete(date);refreshLive();refreshDetails();refreshToday();render()};
 $('#rawCsv').onclick=()=>{
   const days=pickedDates();
