@@ -8,9 +8,9 @@ function equal(a, b) {
 }
 function eventDate(value) {
   if (typeof value !== 'string') return null;
-  const match = value.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})/);
-  if (!match) return null;
-  const date = new Date(match[1] + 'T' + match[2] + '+05:30');
+  if (!/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/.test(value)) return null;
+  const explicitZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(value);
+  const date = new Date(value.replace(' ', 'T') + (explicitZone ? '' : '+05:30'));
   return Number.isNaN(date.getTime()) ? null : date;
 }
 module.exports = async (req, res) => {
@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
     const data = payload.data || {};
     const agentId = String(data.agentId || data.agent_id || '').trim();
     const action = String(data.action || '').trim();
-    const at = eventDate(data.eventTime || payload.eventTime);
+    const at = eventDate(data.event_time || data.eventTime || payload.eventTime);
     if (!agentId || !action || !at) return res.status(200).json({ ignored: true });
     const date = new Date(at.getTime() + 330 * 60000).toISOString().slice(0, 10);
     const entry = {

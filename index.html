@@ -39,13 +39,14 @@ label{font-size:12px;color:var(--muted)}select,input,button{font:inherit}select,
 <section class="section"><h2 id="typesTitle">Break type summary</h2><div class="scroll" id="types"></div></section>
 <p class="note" id="source"></p>
 </div>
+<script src="/break-metrics.js"></script>
 <script src="/datepicker.js"></script>
 <script>
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sec=s=>{const p=String(s||'').split(':').map(Number);return p.length===3&&p.every(Number.isFinite)?p[0]*3600+p[1]*60+p[2]:0};
 const hms=n=>{n=Math.max(0,Math.round(n));return `${Math.floor(n/3600)}:${String(Math.floor(n%3600/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`};
 const dateLabel=d=>new Date(d+'T00:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-const isSystem=r=>/sip disconnect|changemode/i.test(r);
+const isSystem=BreakMetrics.isSystem,isNamed=BreakMetrics.isNamed;
 let records=[], source='', capturedAt='';
 let liveStatuses=[], liveAgentCount=0, liveError='',liveStale=false,todayBreakData={agents:[],trackingSince:null,events:0};
 const completedBreakData=new Map(),completedLoading=new Set();
@@ -69,14 +70,16 @@ async function refreshLive(){
     const response=await fetch(`/api/report?view=live&date=${date}`,{cache:'no-store'});
     if(!response.ok){const error=await response.json().catch(()=>({}));throw Error(error.error||'Live Ozonetel feed is unavailable.')}
     const state=await response.json();
+    if(state.pending){liveStale=true;$('#liveStatus').textContent='Collecting agent status. This view refreshes automatically.';render();return;}
     if(!state.ok||state.demo||!state.live)throw Error('Live Ozonetel feed is unavailable.');
     const statuses=(state.status||[]).filter(s=>Number.isFinite(s.checkedSecsAgo)&&s.checkedSecsAgo<=300);
+    state.stale=!!state.stale||state.sharedIntegration?.pending===true;
     liveStatuses=statuses;liveAgentCount=state.agentCount||statuses.length;liveError='';liveStale=!!state.stale;
     const pending=Math.max(0,(state.agentCount||statuses.length)-statuses.length);
     const onBreak=s=>/^(aux|pause|paused|break)$/i.test(String(s?.state||''));
     const breakCount=statuses.filter(onBreak).length;
     const at=state.fetchedAt;
-    const countText=state.stale?`Last checked: ${breakCount} on break`:pending?`${breakCount} on break among ${statuses.length} checked · ${pending} pending`:`${breakCount} on break now`;
+    const countText=!statuses.length?'Current status unavailable':state.stale?`Last checked: ${breakCount} on break`:pending?`${breakCount} on break among ${statuses.length} checked · ${pending} pending`:`${breakCount} on break now`;
     $('#liveStatus').innerHTML=`<span class="live-pill ${state.stale?'off':''}">${state.stale?'Delayed':'Live'}</span> <span class="break-badge break-${breakCount?'yes':pending?'pending':'no'}">${countText}</span> · Updated ${at?esc(whenIST(at)):'just now'} IST · Refreshes every minute${state.warning?' · '+esc(state.warning):''}`;
     buildOptions();render();
   }catch(error){
@@ -89,8 +92,7 @@ async function refreshDetails(){
   try{const response=await fetch('/api/breaks',{cache:'no-store'});if(!response.ok)throw Error('Could not refresh detailed break report.');const data=await response.json();if(!Array.isArray(data.records))throw Error('Detailed break report is incomplete.');
     const changed=data.capturedAt!==capturedAt||data.records.length!==records.length;
     if(changed){records=data.records;source=data.source||'Ozonetel';capturedAt=data.capturedAt||'';buildOptions();render()}
-    $('#status').textContent=records.length?`Saved snapshot: ${records.length} entries across ${new Set(records.map(r=>r.date)).size} dates through ${dateLabel(records.map(r=>r.date).sort().at(-1))} · Later completed dates load when selected.`:'No saved detailed break entries are available.';
-    $('#status').classList.remove('error');
+    updateReportStatus();
   }catch(error){$('#status').textContent=error.message;$('#status').classList.add('error')}
 }
 async function refreshToday(){
@@ -102,7 +104,7 @@ async function refreshToday(){
     todayBreakData=data;
     buildOptions();render();
   }catch(error){
-    todayBreakData={agents:[],trackingSince:null,events:0,error:error.message};
+    todayBreakData={...todayBreakData,error:error.message};
     render();
   }
 }
@@ -129,7 +131,24 @@ function downloadCsv(name,head,rows,prefix=[]){
 }
 function breakRows(data,date){
   const now=Date.now();
-  return (data?.agents||[]).flatMap(a=>(a.breaks||[]).map(b=>({date,agentId:a.agentId,agentName:displayAgentName(a.agentId,a.agentName),reason:b.reason||'Reason unavailable',duration:b.duration||(!b.end&&date<todayIST()?'—':hms((Date.parse(b.end||new Date(now).toISOString())-Date.parse(b.start))/1000)),start:b.start,end:b.end})));
+  return (data?.agents||[]).flatMap(a=>(a.breaks||[]).map(b=>{
+    const incomplete=!!b.incomplete||(!b.end&&date<todayIST());
+    const row={...b,date,agentId:a.agentId,agentName:displayAgentName(a.agentId,a.agentName),reason:b.reason||'Reason unavailable',incomplete};
+    if(b.ongoing)delete row.countedSeconds;
+    const value=BreakMetrics.duration(row,now);
+    return {...row,duration:incomplete?'End unavailable':hms(value),countedSeconds:incomplete?0:value};
+  }));
+}
+function updateReportStatus(){
+  const days=pickedDates();
+  const data=days.length===1&&days[0]===todayIST()?todayBreakData:null;
+  const incomplete=data?.coverage?.incompleteAgents?.length||0;
+  const error=data?.error||days.map(d=>completedBreakData.get(d)?.error).find(Boolean);
+  $('#status').classList.toggle('error',!!error||incomplete>0);
+  $('#status').textContent=error?'Break history could not be verified. Showing previously received records.':incomplete
+    ?`Break history is incomplete for ${incomplete} agent${incomplete===1?'':'s'}; unverified time is excluded.`
+    :data?.coverage?.lastEventAt?`Latest agent event: ${whenIST(data.coverage.lastEventAt)} IST`
+    :data?'No break events received for this date yet.':days.some(d=>completedLoading.has(d))?'Loading completed break report…':'';
 }
 function loadCompletedDates(days){
   const saved=new Set(records.map(r=>r.date));
@@ -191,7 +210,7 @@ function detailRow(entries,kind,colspan,multipleDates){
   if(!entries.length)return `<tr class="detail-row"><td colspan="${colspan}"><div class="detail-empty">No break entries match the selected filters.</div></td></tr>`;
   const startStamp=r=>Date.parse(/^\d{2}:\d{2}:\d{2}$/.test(r.start)?`${r.date}T${r.start}+05:30`:r.start)||0;
   const sorted=[...entries].sort((a,b)=>startStamp(b)-startStamp(a));
-  const named=entries.filter(r=>!isSystem(r.reason)).length,system=entries.length-named;
+  const named=entries.filter(r=>isNamed(r.reason)).length,system=entries.length-named;
   const caption=kind==='agent'?`${named} named break${named===1?'':'s'}${system?` · ${system} system state${system===1?'':'s'}`:''}`:`${entries.length} entr${entries.length===1?'y':'ies'}`;
   const first=kind==='agent'?'Break type':'Agent';
   return `<tr class="detail-row"><td colspan="${colspan}"><div class="detail-caption">${caption} · Most recent first</div><table class="detail-table"><thead><tr><th>${first}</th><th>Start (IST)</th><th>End (IST)</th><th>Duration</th></tr></thead><tbody>${sorted.map(r=>`<tr><td>${kind==='agent'?esc(r.reason):esc(r.agentName)+' ('+esc(r.agentId)+')'}</td><td>${esc(breakTime(r.start,r.date,multipleDates))}</td><td>${esc(breakTime(r.end,r.date,multipleDates))}</td><td>${esc(r.duration)}</td></tr>`).join('')}</tbody></table></td></tr>`;
@@ -205,19 +224,19 @@ function render(){
   $('#rawCsv').disabled=!rows.length||days.some(date=>completedLoading.has(date)||completedBreakData.get(date)?.error);
   const beyondLatest=days.filter(d=>latest&&d>latest),beforeEarliest=days.filter(d=>earliest&&d<earliest);
   const unavailable=!showLive&&!rows.length&&(beyondLatest.length>0||beforeEarliest.length>0);
-  for(const r of rows){const n=sec(r.duration);total+=n;if(isSystem(r.reason))system+=n;
+  for(const r of rows){const n=r.countedSeconds??sec(r.duration);total+=n;if(isSystem(r.reason))system+=n;
     let a=byAgent.get(r.agentId);if(!a){a={id:r.agentId,name:r.agentName,count:0,total:0,reasons:{}};byAgent.set(r.agentId,a)}a.count++;a.total+=n;a.reasons[r.reason]=(a.reasons[r.reason]||0)+n;
     let t=byType.get(r.reason);if(!t){t={count:0,total:0,agents:new Set()};byType.set(r.reason,t)}t.count++;t.total+=n;t.agents.add(r.agentId);
   }
   const agents=[...byAgent.values()].sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name));
   const types=[...byType.entries()].sort((a,b)=>b[1].total-a[1].total);
-  const top=types.find(([reason])=>!isSystem(reason))?.[0]||'—';
-  const planned=total-system;
+  const top=types.find(([reason])=>isNamed(reason))?.[0]||'—';
+  const planned=rows.filter(r=>isNamed(r.reason)).reduce((n,r)=>n+(r.countedSeconds??sec(r.duration)),0);
   $('#titleDate').textContent=days.length===1?dateLabel(days[0]):DatePicker.label(days);
   const active=liveStatuses.filter(s=>!selectedAgents.size||selectedAgents.has(s.agentId));
   const paused=active.filter(s=>/^(aux|pause|paused|break)$/i.test(String(s.state||''))).length;
   const ready=active.filter(s=>/^ready$/i.test(String(s.state||''))).length;
-  $('#kpis').innerHTML=(showLive?[['Known agents',selectedAgents.size?selectedAgents.size:new Set(records.map(r=>r.agentId)).size],['Checked now',active.length],[liveStale?'On break last checked':'On break now',active.length?paused:'—'],['Named breaks today',rows.filter(r=>!isSystem(r.reason)).length],['Named break time',hms(planned)],['Top reason today',top]]:[['Agents',unavailable?'—':agents.length],['Named break time',unavailable?'—':hms(planned)],['Report entries',unavailable?'—':rows.length],['Average named breaks',unavailable?'—':hms(agents.length?planned/agents.length:0)],['Top named type',top],['System state time',unavailable?'—':hms(system)]]).map(([label,value])=>`<div class="kpi"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div></div>`).join('');
+  $('#kpis').innerHTML=(showLive?[['Known agents',selectedAgents.size?selectedAgents.size:new Set([...records.map(r=>r.agentId),...liveStatuses.map(s=>s.agentId),...todayBreakData.agents.map(a=>a.agentId)]).size],['Checked now',active.length],[liveStale?'On break last checked':'On break now',active.length?paused:'—'],['Named breaks today',rows.filter(r=>isNamed(r.reason)).length],['Named break time',hms(planned)],['Top reason today',top]]:[['Agents',unavailable?'—':agents.length],['Named break time',unavailable?'—':hms(planned)],['Report entries',unavailable?'—':rows.length],['Average named breaks',unavailable?'—':hms(agents.length?planned/agents.length:0)],['Top named type',top],['System state time',unavailable?'—':hms(system)]]).map(([label,value])=>`<div class="kpi"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div></div>`).join('');
   const reasons=[...new Set(rows.map(r=>r.reason))].filter(r=>!isSystem(r)&&typeSelected(r)).sort();
   const cols=['Agent ID','Agent name','Entries',...reasons,'System states','Total time'];
   const head='<thead><tr>'+cols.map(x=>`<th>${esc(x)}</th>`).join('')+'</tr></thead>';
@@ -226,14 +245,17 @@ function render(){
   $('#typesTitle').textContent=showLive?'Break type summary — today':'Break type summary';
   const roster=[...new Set([...records.map(r=>r.agentId),...liveStatuses.map(s=>s.agentId),...todayBreakData.agents.map(a=>a.agentId)])].map(id=>[id,displayAgentName(id)]).filter(([id])=>!selectedAgents.size||selectedAgents.has(id));
   const liveById=new Map(active.map(s=>[s.agentId,s]));
-  const liveBody=roster.map(([id,name])=>{const s=liveById.get(id),state=s?.state|| (liveError?'Unavailable':'Checking'),cls=/^(aux|pause|paused|break)$/i.test(state)?'paused':/^ready$/i.test(state)?'ready':/^(busy|calling|on call|oncall|in call|incall)$/i.test(state)?'busy':'',entry=todayBreakData.agents.find(a=>a.agentId===id),open=entry?.breaks.find(b=>!b.end),reason=cls==='paused'?(open?.reason||s?.reason||'Reason unavailable'):'—',a=byAgent.get(id),agentReasons=a?.reasons||{};
-    const auxPunchedAt=cls==='paused'&&open?.start&&Number.isFinite(Date.parse(open.start))?whenIST(open.start):'—';
-    const namedCount=(entry?.breaks||[]).filter(b=>!isSystem(b.reason)).filter(b=>typeSelected(b.reason)).length;
-    const namedTime=Object.entries(agentReasons).filter(([r])=>!isSystem(r)).reduce((n,[,v])=>n+v,0);
-    return `<tr><td class="id">${esc(id)}</td><td class="name"><button class="link expand-toggle" data-agent="${esc(id)}" aria-expanded="${expandedAgents.has(id)}">${esc(displayAgentName(id,s?.agentName||name))}</button></td><td><span class="state-pill ${cls}">${esc(cls==='paused'?'ON BREAK':state)}</span></td><td>${esc(reason)}</td><td>${esc(auxPunchedAt)}</td><td>${esc(s?.since||'—')}</td><td>${namedCount}</td><td>${esc(Object.keys(agentReasons).filter(r=>!isSystem(r)).join(', ')||'—')}</td><td class="total">${hms(namedTime)}</td></tr>${expandedAgents.has(id)?detailRow(rows.filter(r=>r.agentId===id),'agent',9,false):''}`}).join('');
+  const liveBody=roster.map(([id,name])=>{const s=liveById.get(id),state=s?.state|| (liveError?'Unavailable':'Checking'),cls=/^(aux|pause|paused|break)$/i.test(state)?'paused':/^ready$/i.test(state)?'ready':/^(busy|calling|on call|oncall|in call|incall)$/i.test(state)?'busy':'',entry=todayBreakData.agents.find(a=>a.agentId===id),open=entry?.breaks.find(b=>b.ongoing&&!b.incomplete),reason=cls==='paused'?(s?.reason||open?.reason||'Reason unavailable'):'—',a=byAgent.get(id),agentReasons=a?.reasons||{};
+    const punchedAt=cls==='paused'?(s?.stateStartedAt||open?.actualStart||open?.start):null;
+    const auxPunchedAt=punchedAt&&Number.isFinite(Date.parse(punchedAt))?whenIST(punchedAt):'—';
+    const namedCount=(entry?.breaks||[]).filter(b=>isNamed(b.reason)).filter(b=>typeSelected(b.reason)).length;
+    const historyIncomplete=!!entry?.incomplete||!!todayBreakData.error;
+    const namedTime=Object.entries(agentReasons).filter(([r])=>isNamed(r)).reduce((n,[,v])=>n+v,0);
+    return `<tr><td class="id">${esc(id)}</td><td class="name"><button class="link expand-toggle" data-agent="${esc(id)}" aria-expanded="${expandedAgents.has(id)}">${esc(displayAgentName(id,s?.agentName||name))}</button></td><td><span class="state-pill ${cls}">${esc(cls==='paused'?'ON BREAK':state)}</span></td><td>${esc(reason)}</td><td>${esc(auxPunchedAt)}</td><td>${esc(s?.stateStartedAt?hms(Math.max(0,(Date.now()-Date.parse(s.stateStartedAt))/1000)):s?.since||'—')}</td><td>${historyIncomplete?namedCount+' recorded':namedCount}</td><td>${esc(Object.keys(agentReasons).filter(r=>isNamed(r)).join(', ')||'—')}</td><td class="total">${historyIncomplete?hms(namedTime)+' recorded':hms(namedTime)}</td></tr>${expandedAgents.has(id)?detailRow(rows.filter(r=>r.agentId===id),'agent',9,false):''}`}).join('');
   $('#agents').innerHTML=showLive?`<table><thead><tr><th>Agent ID</th><th>Agent name</th><th>Current state</th><th>Current reason</th><th>AUX punched at (IST)</th><th>Time in state</th><th>Breaks today</th><th>Reasons today</th><th>Break time today</th></tr></thead><tbody>${liveBody}</tbody></table>`:agents.length?`<table>${head}<tbody>${body}</tbody><tfoot><tr><td colspan="2">GRAND TOTAL</td><td>${rows.length}</td>${reasons.map(r=>`<td>${hms(byType.get(r)?.total||0)}</td>`).join('')}<td>${hms(system)}</td><td>${hms(total)}</td></tr></tfoot></table>`:`<div class="empty">${days.some(date=>completedLoading.has(date))?'Loading completed break report…':days.some(date=>completedBreakData.get(date)?.error)?'Could not load the completed break report. Try Refresh now.':unavailable?'No detailed break records are available for the selected date yet.':'No break entries match these filters.'}</div>`;
   $('#types').innerHTML=types.length?`<table><thead><tr><th>Break type</th><th>Entries</th><th>Agents</th><th>Total time</th><th>Share of all time</th></tr></thead><tbody>${types.map(([name,t])=>`<tr><td class="name reason ${isSystem(name)?'system':''}"><button class="link expand-toggle" data-type="${esc(name)}" aria-expanded="${expandedTypes.has(name)}">${esc(name)}</button></td><td>${t.count}</td><td>${t.agents.size}</td><td>${hms(t.total)}</td><td>${total?(100*t.total/total).toFixed(1):'0.0'}%</td></tr>${expandedTypes.has(name)?detailRow(rows.filter(r=>r.reason===name),'type',5,days.length>1):''}`).join('')}</tbody></table>`:'<div class="empty">No break types to show.</div>';
-  $('#source').textContent=showLive?'Today: current states from Ozonetel Get Agent Logins; completed breaks from Ozonetel Live Agent Break Details; new breaks from Ozonetel agent events. SIP disconnections are excluded from named break counts and time. Refreshes every minute.':`Detailed break source: ${source}. ${capturedAt?'Earlier snapshot saved '+new Date(capturedAt).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})+' IST. ':''}Later completed dates load from retained Ozonetel break events. Entries without an end time are excluded from total duration. “SIP disconnected” and “changeMode” are system states.`;
+  $('#source').textContent='Break counts and durations use retained Ozonetel agent events. SIP disconnections, mode changes, refresh and reconnect events are system activity, excluded from named break totals. Missing end times are marked incomplete; no end time is invented.';
+  updateReportStatus();
 }
 for(const kind of ['agent','type']){
   const btn=$(`#${kind}Btn`),menu=$(`#${kind}Menu`);
@@ -257,9 +279,11 @@ $('#rawCsv').onclick=()=>{
   const body=[],seenDates=new Set();
   for(const r of rows){
     if(days.length>1&&!seenDates.has(r.date)){body.push([`Date: ${dateLabel(r.date)}`]);seenDates.add(r.date)}
-    body.push([r.agentId,r.agentName,r.reason,csvClock(r.start),r.end?csvClock(r.end):r.date<todayIST()?'End unavailable':'Ongoing',r.duration,r.end?'Completed':'Ongoing']);
+    body.push([r.agentId,r.agentName,r.reason,csvClock(r.start),r.end?csvClock(r.end):r.date<todayIST()?'End unavailable':'Ongoing',r.duration,r.incomplete?'End unavailable':r.end?'Completed':'Ongoing']);
   }
-  downloadCsv('agent-break-raw-'+suffix+'.csv',['Agent ID','Agent name','Break type','Start (IST)','End (IST)','Duration','Status'],body,[[days.length===1?'Report date':'Report dates',days.map(dateLabel).join(' · ')],[]]);
+  const prefix=[[days.length===1?'Report date':'Report dates',days.map(dateLabel).join(' · ')]];
+  if(days.some(date=>(date===todayIST()?todayBreakData:completedBreakData.get(date))?.coverage?.incompleteAgents?.length))prefix.push(['Data quality','Incomplete entries are marked; missing time is excluded.']);
+  downloadCsv('agent-break-raw-'+suffix+'.csv',['Agent ID','Agent name','Break type','Start (IST)','End (IST)','Duration','Status'],body,[...prefix,[]]);
 };
 $('#agents').onclick=e=>{const b=e.target.closest('[data-agent]');if(b){const id=b.dataset.agent;if(expandedAgents.has(id))expandedAgents.delete(id);else expandedAgents.add(id);render()}};
 $('#types').onclick=e=>{const b=e.target.closest('[data-type]');if(b){const type=b.dataset.type;if(expandedTypes.has(type))expandedTypes.delete(type);else expandedTypes.add(type);render()}};
