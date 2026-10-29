@@ -57,6 +57,13 @@ test('a verified complete provider report replaces partial event history exactly
   assert.equal(history.agents[0].breaks.length,2);
   assert.equal(history.coverage.verifiedComplete,true);
 });
+test('complete provider rows retain nearby starts and source durations without heuristic merging',()=>{
+  const rows=[{agentId:'A',reason:'Meeting Break',start:at('10:00:00'),end:at('10:03:00'),duration:'00:03:00'},
+    {agentId:'A',reason:'Meeting Break',start:at('10:00:01'),end:at('11:00:00'),duration:'00:59:59'}];
+  const history=build([],{seed:{verifiedComplete:true,rows}});
+  assert.equal(history.agents[0].breaks.length,2);
+  assert.equal(history.agents[0].breaks.reduce((n,b)=>n+b.countedSeconds,0),3779);
+});
 test('past breaks without end times remain incomplete and do not accumulate overnight',()=>{
   const history=build([event('pause','17:00:00','Lunch Break')]);
   assert.equal(history.agents[0].breaks[0].incomplete,true);
