@@ -33,6 +33,10 @@ Break history is reconstructed from retained Ozonetel agent events. Repeated not
 
 Historical entries without an end event are marked incomplete and excluded from duration totals. Current provider status that contradicts an apparently open event also marks the interval incomplete; an end time is never invented. A paused agent missing a start event has an incomplete-history marker rather than a fabricated AUX start. Newer events can update a provider status snapshot, and the original provider sample time remains visible. Cached data never receives a new sample timestamp merely because the page refreshes.
 
+For a complete Ozonetel Detailed View export, a daily Redis `break:seed:YYYY-MM-DD` record with `verifiedComplete: true` replaces that day's partial event-derived rows. Such records contain the source report's exact starts, ends, reasons, and durations, plus `capturedAt` and provenance. Preserve the original events; the export is an authoritative baseline, not an event deletion. Incomplete/partial baselines do not get that flag.
+
+For other completed dates, the dashboard checks its reconstructed pause total against the existing shared `summaryReport` response. A missing interval, missing agent, or time discrepancy marks the affected history incomplete. This reads an existing shared API; it does not change the shared backend, its rate limiter, its connection credentials, or the other projects using it. A matching aggregate does not manufacture missing detailed reasons or timestamps.
+
 All times are interpreted in IST unless their source explicitly includes a timezone. Cross-midnight intervals are clipped to the selected date. Agent rows, break-type summaries, detail views, and CSVs use the same filtered records. Missing upstream events cannot be recreated without an original Ozonetel report; affected figures are labeled as recorded/incomplete.
 
 Run the regression checks with `node --test test/*.test.cjs`.

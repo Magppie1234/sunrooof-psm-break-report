@@ -142,13 +142,15 @@ function breakRows(data,date){
 function updateReportStatus(){
   const days=pickedDates();
   const data=days.length===1&&days[0]===todayIST()?todayBreakData:null;
-  const incomplete=data?.coverage?.incompleteAgents?.length||0;
+  const incomplete=data?.coverage?.incompleteAgents?.length||new Set(days.flatMap(d=>completedBreakData.get(d)?.coverage?.incompleteAgents||[])).size;
   const error=data?.error||days.map(d=>completedBreakData.get(d)?.error).find(Boolean);
   $('#status').classList.toggle('error',!!error||incomplete>0);
   $('#status').textContent=error?'Break history could not be verified. Showing previously received records.':incomplete
     ?`Break history is incomplete for ${incomplete} agent${incomplete===1?'':'s'}; unverified time is excluded.`
     :data?.coverage?.lastEventAt?`Latest agent event: ${whenIST(data.coverage.lastEventAt)} IST`
-    :data?'No break events received for this date yet.':days.some(d=>completedLoading.has(d))?'Loading completed break report…':'';
+    :data?'No break events received for this date yet.':days.some(d=>completedLoading.has(d))?'Loading completed break report…'
+    :days.every(d=>completedBreakData.get(d)?.coverage?.verifiedComplete)?'Verified against the completed Ozonetel detailed report.'
+    :'Based on retained agent events; completed report reconciliation is pending.';
 }
 function loadCompletedDates(days){
   const saved=new Set(records.map(r=>r.date));

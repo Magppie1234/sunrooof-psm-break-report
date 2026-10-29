@@ -21,6 +21,7 @@
   }
   function seconds(value) {
     if (typeof value === 'number') return Number.isFinite(value) && value >= 0 ? value : 0;
+    if (/^\d+(?:\.\d+)?$/.test(String(value||''))) return Number(value);
     if (!/^\d+:\d{2}:\d{2}$/.test(String(value || ''))) return 0;
     return value.split(':').map(Number).reduce((n, p) => n * 60 + p, 0);
   }

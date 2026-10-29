@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const metrics=require('../break-metrics');
 const {buildHistory}=require('../lib/break-history.cjs');
 const {reconcileLive,ageLive}=require('../lib/live-state.cjs');
+const {verifyHistory}=require('../lib/verify-history.cjs');
 const date='2026-10-28',now=Date.parse('2026-10-29T06:00:00Z');
 const at=time=>date+'T'+time+'+05:30';
 const event=(action,time,reason='',agentId='A')=>({agentId,action,at:at(time),eventData:reason});
@@ -45,6 +46,16 @@ test('a provider baseline and overlapping event are not counted twice',()=>{
     {seed:{rows:[{agentId:'A',reason:'Lunch Break',start:at('10:10:00'),end:at('10:30:00')}]}});
   assert.equal(history.agents[0].breaks.length,1);
   assert.equal(history.agents[0].breaks[0].countedSeconds,1800);
+});
+test('a verified complete provider report replaces partial event history exactly',()=>{
+  const history=build([event('pause','10:00:00','Lunch Break'),event('release','10:00:06')],
+    {seed:{verifiedComplete:true,capturedAt:'2026-10-29T07:00:00Z',rows:[
+      {agentId:'A',reason:'Lunch Break',start:at('10:00:01'),end:at('10:00:06')},
+      {agentId:'A',reason:'Lunch Break',start:at('14:00:00'),end:at('14:40:53')},
+    ]}});
+  assert.equal(history.agents[0].breaks.reduce((n,b)=>n+b.countedSeconds,0),2458);
+  assert.equal(history.agents[0].breaks.length,2);
+  assert.equal(history.coverage.verifiedComplete,true);
 });
 test('past breaks without end times remain incomplete and do not accumulate overnight',()=>{
   const history=build([event('pause','17:00:00','Lunch Break')]);
@@ -92,4 +103,20 @@ test('cached status preserves the original sample age and advances elapsed time'
   assert.equal(live.stale,true);
   assert.equal(live.status[0].checkedSecsAgo,360);
   assert.equal(live.status[0].since,'0:07:00');
+});
+test('existing shared daily totals flag silently missing break events',()=>{
+  const history=build([event('pause','10:00:00','Lunch Break'),event('release','10:10:00')]);
+  verifyHistory(history,[{AgentID:'A',TotalPauseTime:'00:30:00'}]);
+  assert.equal(history.agents[0].incomplete,true);
+  assert.equal(history.agents[0].recordedPauseSeconds,600);
+  assert.equal(history.agents[0].reportedPauseSeconds,1800);
+  assert.deepEqual(history.coverage.incompleteAgents,['A']);
+});
+test('verification includes SIP pauses but excludes toolbar bookkeeping',()=>{
+  const history=build([event('AUX','10:00:00','changeMode'),event('release','10:01:00'),
+    event('pause','11:00:00','SIP disconnected'),event('release','11:05:00'),
+    event('pause','12:00:00','Lunch Break'),event('release','12:10:00')]);
+  verifyHistory(history,[{AgentID:'A',TotalPauseTime:'00:15:00'}]);
+  assert.equal(history.coverage.pauseTotalsMatched,true);
+  assert.equal(history.agents[0].incomplete,false);
 });

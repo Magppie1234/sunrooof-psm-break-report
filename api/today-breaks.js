@@ -1,5 +1,7 @@
 const {redis} = require('./_redis');
 const {buildHistory} = require('../lib/break-history.cjs');
+const {verifyHistory} = require('../lib/verify-history.cjs');
+const hub = require('../lib/integration-client.cjs');
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'GET') return res.status(405).json({error:'GET required'});
@@ -19,6 +21,15 @@ module.exports = async (req, res) => {
     const seed = parse(seedValue), live = parse(liveValue);
     const events = [...(prior||[]),...(members||[])].map(parse).filter(Boolean);
     const history = buildHistory({date,events,seed,now,statuses:live?.status||[],statusAt:live?.fetchedAt});
+    // Read an already supported shared report. No provider call or configuration
+    // bypasses the shared rate limiter, and no shared backend code is changed.
+    if(date<today&&!history.coverage.verifiedComplete&&hub.configured()) {
+      const result=await hub.query('/ca_reports/summaryReport',{userName:process.env.OZONETEL_USERNAME,
+        fromDate:date+' 00:00:00',toDate:date+' 23:59:59'}).catch(()=>null);
+      const summary=result&&[result.j.details,result.j.data,result.j.message].find(Array.isArray);
+      if(result?.http===200&&result.j.integration?.complete===true&&summary)verifyHistory(history,summary);
+      else history.coverage.verificationPending=true;
+    }
     return res.status(200).json({ok:true,date,fetchedAt:new Date(now).toISOString(),trackingSince:trackingSince||null,
       baselineAt:seed?.capturedAt||null,events:history.coverage.events,...history});
   } catch {
